@@ -16,17 +16,22 @@ The goals / steps of this project are the following:
 
 [//]: # (Image References)
 
-[image1]: ./examples/undistort_output.png "Undistorted"
-[image2]: ./test_images/test1.jpg "Road Transformed"
-[image3]: ./output_images/combined.png "Binary Example"
-[image4]: ./output_images/warped.png "Warp Example"
-[image5]: ./output_images/color_fit_lines.png "Fit Visual"
-[image6]: ./output_images/out_test1.jpg "Output"
-[image7]: ./output_images/out_test2.jpg "Output"
-[image8]: ./output_images/out_test3.jpg "Output"
-[image9]: ./output_images/out_test4.jpg "Output"
-[image10]: ./output_images/out_test5.jpg "Output"
-[image11]: ./output_images/out_test6.jpg "Output"
+[image1]: ./output_images/undist0.png "Undistorted"
+[image2]: ./output_images/undist1.png "Undistorted"
+[image3]: ./output_images/undistorted1.png "Binary Example"
+[image4]: ./output_images/gradient_trans.png "Warp Example"
+[image5]: ./output_images/r_and_b.png "Fit Visual"
+[image6]: ./output_images/hls.png "Output"
+[image7]: ./output_images/rgb_s.png "Output"
+[image8]: ./output_images/luv.png "Output"
+[image9]: ./output_images/all_combined.png "Output"
+[image10]: ./output_images/points.png "Output"
+[image11]: ./output_images/warped.png "Output"
+[image12]: ./output_images/warped2.png "Output"
+[window]: ./output_images/windowed.png "Output"
+[image_last]: ./output_images/lanes.png "Output"
+[histogram]: ./output_images/histogram.png "Output"
+[fit]: ./output_images/fitted.png "Output"
 [video1]: ./project_video.mp4 "Video"
 
 
@@ -46,26 +51,63 @@ I start by preparing "object points", which will be the (x, y, z) coordinates of
 
 I then used the output `objpoints` and `imgpoints` to compute the camera calibration and distortion coefficients using the `cv2.calibrateCamera()` function.  I applied this distortion correction to the test image using the `cv2.undistort()` function.
 
-![alt text][image1]
+| ![image3][image1] |
+|:--:| |:--:| |:--:|
+| ![image3][image2] |
 
 ### Pipeline (single images)
 
 #### 1. Provide an example of a distortion-corrected image.
 
-To demonstrate this step, I will describe how I apply the distortion correction to one of the test images like this one:
-![alt text][image2]
+You can see the application of distortion correction to one of the test images like this one:
+
+![alt text][image3]
 
 #### 2. Describe how (and identify where in your code) you used color transforms, gradients or other methods to create a thresholded binary image.  Provide an example of a binary image result.
 
-I used a combination of color and gradient thresholds to generate a binary image. Here's an example of my output for this step.  (note: this is not actually from one of the test images)
+The pipeline to create a final transformed image is in the function `gradient_threshold()`, which is later called by the main pipeline method `process_image()`.
 
-| ![image3][image3] | | ![image2][image2] || ![image3][image3] |
+I extensively tried many combinations of gradient and color transforms.
+
+Here is the final gradient transform:
+
+| ![image3][image4] |
 |:--:| |:--:| |:--:|
-| *Center* || *Left* | | *Right* |
+| *Combination of SobelX, Magnitude and Directional Transforms* |
+
+Next I have the combination of R and B channels of RGB image with custom thresholds:
+
+| ![image3][image5] |
+|:--:| |:--:| |:--:|
+| *R and B channels* |
+
+Then I worked on HLS images:
+
+| ![image3][image6] |
+|:--:| |:--:| |:--:|
+| *H, L and S channels* |
+
+S channel is the most helpful one, so combine it with RGB:
+
+| ![image3][image7] |
+|:--:| |:--:| |:--:|
+| *Combination of RGB and S channels* |
+
+Still this combination doesn't show our lines fully. So I played with the LUV channels as well:
+
+| ![image3][image8] |
+|:--:| |:--:| |:--:|
+| *Combination of L, U and V channels* |
+
+Final combination:
+
+| ![image3][image9] |
+|:--:| |:--:| |:--:|
+| *Final combination* |
 
 #### 3. Describe how (and identify where in your code) you performed a perspective transform and provide an example of a transformed image.
 
-The code for my perspective transform includes a function called `warper()`, which appears in lines 1 through 8 in the file `example.py` (output_images/examples/example.py) (or, for example, in the 3rd code cell of the IPython notebook).  The `warper()` function takes as inputs an image (`img`), as well as source (`src`) and destination (`dst`) points.  I chose the hardcode the source and destination points in the following manner:
+The code for my perspective transform includes a function called `warp()`. The `warp()` function takes as inputs an image (`img`), as well as source (`src`) and destination (`dst`) points.  I chose the hardcode the source and destination points in the following manner:
 
 src = np.float32([[700, 450],
                   [1150, 720],
@@ -91,27 +133,39 @@ dst = np.float32(
     [(img_size[0] * 3 / 4), 0]])
 ```
 
-I verified that my perspective transform was working as expected by drawing the `src` and `dst` points onto a test image and its warped counterpart to verify that the lines appear parallel in the warped image.
+I verified that my perspective transform was working as expected by drawing the `src` and `dst` points onto a test image and its warped counterpart to verify that the lines appear parallel in the warped image:
 
-![alt text][image4]
+![alt text][image10]
+
+![alt text][image11]
+
+Final warped image with transformation looks like this:
+
+![alt text][image12]
 
 #### 4. Describe how (and identify where in your code) you identified lane-line pixels and fit their positions with a polynomial?
 
-Then I did some other stuff and fit my lane lines with a 2nd order polynomial kinda like this:
+In the function `findFit()`, which gets a warped image as input, I found the starting points of left and right lanes using a histogram. Here you can see the peak points in the histogram:
 
-![alt text][image5]
+![alt text][histogram]
+
+Then I used sliding windows (10 of them) to find the pixels that create the lines. When the windows provided the points, using `np.polyfit` I drew the lines:
+
+![alt text][window]
+
+Once the initial window search is done, for the next frames we skip this step to accelerate the process. You can see here a new fit based on the previous lane points:
+
+![alt text][fit]
 
 #### 5. Describe how (and identify where in your code) you calculated the radius of curvature of the lane and the position of the vehicle with respect to center.
 
-I did this in the function findLines.
+The radius of curvature is calculated in the `findCurv()` function. First I define conversions in x and y from pixels space to meters, then fit new polynomials to x,y in world space using `np.polyfit`. Finally I calculate the new radii of curvature.
 
 #### 6. Provide an example image of your result plotted back down onto the road such that the lane area is identified clearly.
 
-I implemented this step in lines # through # in my code in `yet_another_file.py` in the function `map_lane()`.  Here is an example of my result on a test image:
+I tested my pipeline on the test images and here are the results:
 
-| ![image3][image6] | | ![image2][image7] || ![image3][image8] |
-|:--:| |:--:| |:--:|
-| ![image3][image9] | | ![image2][image10] || ![image3][image11] |
+![image3][image_last]
 
 ---
 
@@ -127,6 +181,4 @@ Here's a [link to my video result](./project_video.mp4)
 
 #### 1. Briefly discuss any problems / issues you faced in your implementation of this project.  Where will your pipeline likely fail?  What could you do to make it more robust?
 
-The problem with my implementation is that if there no lanes found in a frame, the pipeline breaks and the algorithm
-halts. This is why I couldn't get the challenge video working yet. This issue could be solved, I believe, by playing
-with the thresholds and image binaries.
+To handle the case when I don't find any lane lines, I implemented a Lines() class where I am keeping the last 10 found lane lines and using their mean as my confident lanes.
